@@ -1,4 +1,4 @@
-use cgmath::{Point, Point3, EuclideanVector, Vector3};
+use cgmath::{Point, Point3, Vector3};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Bounds {
@@ -59,8 +59,6 @@ pub enum Voxel {
 pub struct SurfaceVoxel {
   /// The position of a free-floating vertex on the surface.
   pub inner_vertex: Vertex,
-  /// The surface normal at `inner_vertex`.
-  pub normal: Normal,
 
   /// Is this voxel's low corner inside the field?
   pub corner_inside_surface: bool,
@@ -87,19 +85,6 @@ impl Vertex {
   }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Normal {
-  pub x: Fraci8,
-  pub y: Fraci8,
-  pub z: Fraci8,
-}
-
-impl Normal {
-  pub fn to_world_normal(&self) -> Vector3<f32> {
-    Vector3::new(self.x.to_f32(), self.y.to_f32(), self.z.to_f32()).normalize()
-  }
-}
-
 /// Express a `[0,1)` fraction using a `u8`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Fracu8 {
@@ -114,23 +99,3 @@ impl Fracu8 {
     }
   }
 }
-
-/// Express a `[-1,1)` fraction using a `i8`.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Fraci8 {
-  // The denominator is 1 << 8.
-  pub numerator: i8,
-}
-
-impl Fraci8 {
-  pub fn of(numerator: i8) -> Fraci8 {
-    Fraci8 {
-      numerator: numerator,
-    }
-  }
-
-  pub fn to_f32(&self) -> f32 {
-    self.numerator as f32 / 128.0
-  }
-}
-

@@ -31,7 +31,7 @@ use common::terrain_block;
 use common::terrain_block::TerrainBlock;
 
 use heightmap::HeightMap;
-use voxel::{Voxel, Fracu8, Fraci8};
+use voxel::{Voxel, Fracu8};
 use voxel_tree::VoxelTree;
 
 pub const AMPLITUDE: f64 = 64.0;
@@ -169,8 +169,6 @@ impl Terrain {
           let surface =
             voxel::SurfaceVoxel {
               inner_vertex: voxel::Vertex { x: half, y: half, z: half },
-              // TODO: Make real normals.
-              normal: voxel::Normal { x: Fraci8::of(0), y: Fraci8::of(0x7F), z: Fraci8::of(0) },
               corner_inside_surface: true,
             };
           *voxel = voxel_tree::TreeBody::Leaf(Voxel::Surface(surface));

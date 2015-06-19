@@ -1,6 +1,6 @@
-use cgmath::{Point, Point3, Vector, Vector3};
+use cgmath::{Point, Point3, Vector, EuclideanVector, Vector3};
 use cgmath::Aabb3;
-use std::cmp::{min, max, partial_min, partial_max};
+use std::cmp::{partial_min, partial_max};
 use std::collections::hash_map;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -15,7 +15,7 @@ use common::terrain_block::{TerrainBlock, tri};
 
 use heightmap::HeightMap;
 use voxel;
-use voxel::{Fracu8, Fraci8, Voxel, SurfaceVoxel, Vertex, Normal};
+use voxel::{Fracu8, Voxel, SurfaceVoxel, Vertex};
 use voxel_tree;
 use voxel_tree::VoxelTree;
 
@@ -28,10 +28,6 @@ pub fn generate_voxel(
   timers.time("generate_voxel", || {
     let field_contains = |x, y, z| {
       heightmap.density_at(x, y, z) >= 0.0
-    };
-
-    let get_normal = |x, y, z| {
-      heightmap.normal_at(0.01, x, y, z)
     };
 
     let size = voxel.size();
@@ -119,36 +115,8 @@ pub fn generate_voxel(
         z: Fracu8::of(vertex.z as u8),
       };
 
-    let normal;
-    {
-      // Okay, this is silly to have right after we construct the vertex.
-      let vertex = vertex.to_world_vertex(voxel);
-      normal = get_normal(vertex.x, vertex.y, vertex.z).mul_s(127.0);
-    }
-
-    // Okay, so we scale the normal by 127, and use 127 to represent 1.0.
-    // Then we store it in a `Fraci8`, which scales by 128 and represents a
-    // fraction in [0,1). That seems wrong, but this is normal data, so scaling
-    // doesn't matter. Sketch factor is over 9000, but it's not wrong.
-
-    let normal = Vector3::new(normal.x as i32, normal.y as i32, normal.z as i32);
-    let normal =
-      Vector3::new(
-        max(-127, min(127, normal.x)) as i8,
-        max(-127, min(127, normal.y)) as i8,
-        max(-127, min(127, normal.z)) as i8,
-      );
-
-    let normal =
-      Normal {
-        x: Fraci8::of(normal.x),
-        y: Fraci8::of(normal.y),
-        z: Fraci8::of(normal.z),
-      };
-
     Voxel::Surface(SurfaceVoxel {
       inner_vertex: vertex,
-      normal: normal,
       corner_inside_surface: corner,
     })
   })
@@ -256,9 +224,8 @@ pub fn generate_block(
       }
       let index = coords.len();
       let vertex = voxel.inner_vertex.to_world_vertex(&bounds);
-      let normal = voxel.normal.to_world_normal();
       coords.push(vertex);
-      normals.push(normal);
+      normals.push(Vector3::new(0.0, 0.0, 0.0));
       indices.insert(voxel_position, index);
 
       let mut edge = |
@@ -277,7 +244,6 @@ pub fn generate_block(
         }
 
         let v1; let v2; let v3; let v4;
-        let n1; let n2; let n3; let n4;
         let i1; let i2; let i3; let i4;
 
         {
@@ -285,7 +251,7 @@ pub fn generate_block(
             match indices.entry(*position) {
               hash_map::Entry::Occupied(entry) => {
                 let i = *entry.get();
-                (coords[i], normals[i], i)
+                (coords[i], i)
               },
               hash_map::Entry::Vacant(entry) => {
                 let bounds = bounds_at(position);
@@ -293,11 +259,10 @@ pub fn generate_block(
                   Voxel::Surface(voxel) => {
                     let i = coords.len();
                     let vertex = voxel.inner_vertex.to_world_vertex(&bounds);
-                    let normal = voxel.normal.to_world_normal();
                     coords.push(vertex);
-                    normals.push(normal);
+                    normals.push(Vector3::new(0.0, 0.0, 0.0));
                     entry.insert(i);
-                    (vertex, normal, i)
+                    (vertex, i)
                   },
                   _ => panic!("Unitialized neighbor"),
                 }
@@ -305,38 +270,48 @@ pub fn generate_block(
             }
           };
 
-          let (tv1, tn1, ti1) = voxel_index(&voxel_position.add_v(&d1).add_v(&d2));
-          let (tv2, tn2, ti2) = voxel_index(&voxel_position.add_v(&d1));
-          let (tv3, tn3, ti3) = (vertex, normal, index);
-          let (tv4, tn4, ti4) = voxel_index(&voxel_position.add_v(&d2));
+          let (tv1, ti1) = voxel_index(&voxel_position.add_v(&d1).add_v(&d2));
+          let (tv2, ti2) = voxel_index(&voxel_position.add_v(&d1));
+          let (tv3, ti3) = (vertex, index);
+          let (tv4, ti4) = voxel_index(&voxel_position.add_v(&d2));
 
           v1 = tv1; v2 = tv2; v3 = tv3; v4 = tv4;
-          n1 = tn1; n2 = tn2; n3 = tn3; n4 = tn4;
           i1 = ti1; i2 = ti2; i3 = ti3; i4 = ti4;
         }
 
         // Put a vertex at the average of the vertices.
         let v_center =
           v1.add_v(&v2.to_vec()).add_v(&v3.to_vec()).add_v(&v4.to_vec()).div_s(4.0);
-        let n_center =
-          n1.add_v(&n2).add_v(&n3).add_v(&n4).div_s(4.0);
 
         let i_center = coords.len();
         coords.push(v_center);
-        normals.push(n_center);
+        normals.push(Vector3::new(0.0, 0.0, 0.0));
+
+        let is = [i1, i2, i3, i4];
+        let vs = [&v1, &v2, &v3, &v4];
+
+        let mut poly = |i1: usize, i2: usize| {
+          polys.push([is[i1], is[i2], i_center]);
+          let d1 = v_center.sub_p(vs[i1]);
+          let d2 = v_center.sub_p(vs[i2]);
+          let normal = d1.cross(&d2).normalize();
+          normals[is[i1]].add_self_v(&normal);
+          normals[is[i2]].add_self_v(&normal);
+          normals[i_center].add_self_v(&normal);
+        };
 
         if voxel.corner_inside_surface {
           // The polys are visible from positive infinity.
-          polys.push([i2, i1, i_center]);
-          polys.push([i3, i2, i_center]);
-          polys.push([i4, i3, i_center]);
-          polys.push([i1, i4, i_center]);
+          poly(1, 0);
+          poly(2, 1);
+          poly(3, 2);
+          poly(0, 3);
         } else {
           // The polys are visible from negative infinity.
-          polys.push([i1, i2, i_center]);
-          polys.push([i2, i3, i_center]);
-          polys.push([i3, i4, i_center]);
-          polys.push([i4, i1, i_center]);
+          poly(0, 1);
+          poly(1, 2);
+          poly(2, 3);
+          poly(3, 0);
         }
       };
 
@@ -358,6 +333,10 @@ pub fn generate_block(
         Vector3::new(0, -1, 0),
       );
     }}}
+
+    for normal in normals.iter_mut() {
+      normal.normalize_self();
+    }
 
     for poly in polys.iter() {
       block.vertex_coordinates.push(tri(coords[poly[0]], coords[poly[1]], coords[poly[2]]));
