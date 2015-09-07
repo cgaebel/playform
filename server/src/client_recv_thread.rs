@@ -163,11 +163,9 @@ pub fn apply_client_update<UpdateGaia>(
         let center = bounds.center();
         let r = 8.0;
         let brush =
-          voxel::mosaic::solid::T {
-            field: voxel::field::sphere::T {
-              center: center,
-              radius: r,
-            },
+          voxel::field::sphere::T {
+            center: center,
+            radius: r,
             material: voxel::Material::Empty,
           };
         update_gaia(ServerToGaia::RemoveSphere(brush));

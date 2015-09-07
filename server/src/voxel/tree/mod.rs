@@ -69,7 +69,7 @@ impl<Voxel> Branches<Voxel> {
   }
 }
 
-fn brush_overlaps(voxel: &voxel::Bounds, brush: &::voxel::brush::Bounds) -> bool {
+fn brush_overlaps(voxel: &voxel::Bounds, brush: &::voxel::field::Bounds) -> bool {
   if voxel.lg_size >= 0 {
     let min =
       Vector3::new(
@@ -125,9 +125,10 @@ impl<Voxel> TreeBody<Voxel> {
     &mut self,
     bounds: &voxel::Bounds,
     brush: &Brush,
-    brush_bounds: &::voxel::brush::Bounds,
+    brush_bounds: &::voxel::field::Bounds,
   ) where
-    Brush: voxel::brush::T<Voxel=Voxel>,
+    Brush: voxel::field::T,
+    Voxel: voxel::T,
   {
     debug!("brush considers {:?}", bounds);
     if !brush_overlaps(bounds, brush_bounds) {
@@ -140,7 +141,7 @@ impl<Voxel> TreeBody<Voxel> {
         match data {
           &mut None => {},
           &mut Some(ref mut voxel) => {
-            voxel::brush::T::apply(voxel, bounds, brush);
+            voxel::T::brush(voxel, bounds, brush);
           },
         }
 
@@ -468,9 +469,10 @@ impl<Voxel> T<Voxel> {
   pub fn brush<Brush>(
     &mut self,
     brush: &Brush,
-    brush_bounds: &::voxel::brush::Bounds,
+    brush_bounds: &::voxel::field::Bounds,
   ) where
-    Brush: voxel::brush::T<Voxel=Voxel>,
+    Brush: voxel::field::T,
+    Voxel: voxel::T,
   {
     macro_rules! recurse(($branch: ident, $x: expr, $y: expr, $z: expr) => {{
       self.contents.$branch.brush(
@@ -502,10 +504,10 @@ mod tests {
   #[derive(Debug)]
   struct EraseAll;
 
-  impl voxel::brush::T for EraseAll {
+  impl voxel::field::T for EraseAll {
     type Voxel = i32;
 
-    fn apply(this: &mut i32, _: &voxel::Bounds, _: &EraseAll, _: ::voxel::brush::Action) {
+    fn apply(this: &mut i32, _: &voxel::Bounds, _: &EraseAll, _: ::voxel::field::Action) {
       *this = 999;
     }
   }
@@ -595,11 +597,11 @@ mod tests {
 
     tree.brush(
       &EraseAll,
-      &voxel::brush::Bounds::new(
+      &voxel::field::Bounds::new(
         Point3::new(9, -1, 3),
         Point3::new(10, 0, 4),
       ),
-      voxel::brush::Action::Remove,
+      voxel::field::Action::Remove,
     );
 
     assert_eq!(tree.get(&voxel::Bounds::new(9, -1, 3, 0)), Some(&999));

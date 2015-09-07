@@ -4,7 +4,7 @@ use std::f32;
 use voxel::field;
 
 pub struct T {
-  pub components: Vec<(Box<field::Dispatch>, ::voxel::Material)>,
+  pub components: Vec<Box<field::Dispatch>>,
 }
 
 unsafe impl Send for T {}
@@ -15,10 +15,10 @@ pub fn new() -> T {
   }
 }
 
-pub fn push<Field>(this: &mut T, material: ::voxel::Material, field: Field) 
+pub fn push<Field>(this: &mut T, field: Field) 
   where Field: field::T + 'static,
 {
-  this.components.push((Box::new(field), material));
+  this.components.push(Box::new(field));
 }
 
 impl field::T for T {
@@ -26,7 +26,7 @@ impl field::T for T {
     assert!(this.components.len() > 0);
     this.components.iter().fold(
       f32::NEG_INFINITY, 
-      |max, &(ref shape, _)| f32::max(max, shape.density(p)),
+      |max, shape| f32::max(max, shape.density(p)),
     )
   }
 
@@ -35,7 +35,7 @@ impl field::T for T {
     let (_, normal) =
       this.components.iter().fold(
         (f32::NEG_INFINITY, Vector3::new(0.0, 0.0, 0.0)), 
-        |(max, normal), &(ref shape, _)| {
+        |(max, normal), shape| {
           let d = shape.density(p);
           if d > max {
             (d, shape.normal(p))
@@ -46,23 +46,15 @@ impl field::T for T {
       );
     normal
   }
-}
 
-impl ::voxel::mosaic::T for T {
   fn material(this: &Self, p: &Point3<f32>) -> Option<::voxel::Material> {
     assert!(this.components.len() > 0);
-    let (_, material) =
-      this.components.iter().fold(
-        (f32::NEG_INFINITY, None),
-        |(max, max_material), &(ref shape, material)| {
-          let d = shape.density(p);
-          if d > max && d >= 0.0 {
-            (d, Some(material))
-          } else {
-            (max, max_material)
-          }
-        },
-      );
-    material
+    for shape in this.components.iter() {
+      match shape.material(p) {
+        None => {},
+        Some(material) => return Some(material),
+      }
+    }
+    None
   }
 }

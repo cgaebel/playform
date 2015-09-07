@@ -3,7 +3,7 @@ mod heightmap;
 
 pub use noise::Seed;
 
-use cgmath::Aabb;
+use cgmath::{Aabb, Aabb3};
 use std::collections::hash_map::HashMap;
 use std::iter::range_inclusive;
 use std::sync::Mutex;
@@ -106,11 +106,11 @@ impl Terrain {
     &mut self,
     id_allocator: &Mutex<IdAllocator<EntityId>>,
     brush: &Brush,
-    brush_bounds: &::voxel::brush::Bounds,
+    brush_bounds: &Aabb3<i32>,
     mut block_changed: F,
   ) where
     F: FnMut(&TerrainBlock, &BlockPosition, LODIndex),
-    Brush: ::voxel::brush::T<Voxel=voxel::T<::voxel::Material>>,
+    Brush: ::voxel::field::T,
   {
     macro_rules! voxel_range(($d:ident, $scale:expr) => {{
       let low = brush_bounds.min().$d >> $scale;

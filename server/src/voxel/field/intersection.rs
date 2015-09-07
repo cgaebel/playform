@@ -1,31 +1,62 @@
 use cgmath::{Point3, Vector3};
+use std::f32;
 
 use voxel::field;
 
-pub struct T ([Box<field::Dispatch>; 2]);
+pub struct T {
+  pub components: Vec<Box<field::Dispatch>>,
+}
 
 unsafe impl Send for T {}
 
-pub fn new<Field1, Field2>(field1: Field1, field2: Field2) -> T
-  where 
-    Field1: field::T + 'static,
-    Field2: field::T + 'static,
+pub fn new() -> T {
+  T {
+    components: Vec::new(),
+  }
+}
+
+pub fn push<Field>(this: &mut T, field: Field) 
+  where Field: field::T + 'static,
 {
-  T([Box::new(field1), Box::new(field2)])
+  this.components.push(Box::new(field));
 }
 
 impl field::T for T {
-  fn density(t: &T, p: &Point3<f32>) -> f32 {
-    f32::min(t.0[0].density(p), t.0[1].density(p))
+  fn density(this: &Self, p: &Point3<f32>) -> f32 {
+    assert!(this.components.len() > 0);
+    this.components.iter().fold(
+      f32::INFINITY, 
+      |min, shape| f32::min(min, shape.density(p)),
+    )
   }
 
-  fn normal(t: &T, p: &Point3<f32>) -> Vector3<f32> {
-    let d1 = t.0[0].density(p);
-    let d2 = t.0[1].density(p);
-    if d1 < d2 {
-      t.0[0].normal(p)
-    } else {
-      t.0[1].normal(p)
+  fn normal(this: &Self, p: &Point3<f32>) -> Vector3<f32> {
+    assert!(this.components.len() > 0);
+    let (_, normal) =
+      this.components.iter().fold(
+        (f32::INFINITY, Vector3::new(0.0, 0.0, 0.0)), 
+        |(min, normal), shape| {
+          let d = shape.density(p);
+          if d > min {
+            (d, shape.normal(p))
+          } else {
+            (min, normal)
+          }
+        },
+      );
+    normal
+  }
+
+
+  fn material(this: &Self, p: &Point3<f32>) -> Option<::voxel::Material> {
+    assert!(this.components.len() > 0);
+    let mut material = None;
+    for shape in this.components.iter() {
+      match shape.material(p) {
+        None => return None,
+        Some(m) => material = Some(m),
+      }
     }
+    material
   }
 }

@@ -1,6 +1,4 @@
-pub mod brush;
 pub mod field;
-pub mod mosaic;
 pub mod tree;
 
 pub mod impls;
@@ -78,4 +76,14 @@ impl Bounds {
     p.z < high.z &&
     true
   }
+}
+
+/// The interface provided by Voxels.
+pub trait T {
+  /// Apply a brush to this voxel.
+  fn brush<Brush>(
+    this: &mut Self,
+    bounds: &::voxel::Bounds,
+    brush: &Brush,
+  ) where Brush: ::voxel::field::T;
 }
