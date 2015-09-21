@@ -13,5 +13,6 @@
 extern crate num;
 
 pub mod main;
+pub mod lazy;
 
 pub use self::main::*;
