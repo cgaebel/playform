@@ -4,6 +4,7 @@ use std::collections::hash_map::Entry::{Vacant, Occupied};
 use common::block_position::BlockPosition;
 use common::communicate::TerrainBlockSend;
 use common::lod::LODIndex;
+use common::serialize;
 use common::surroundings_loader::radius_between;
 
 use client::{Client, LOD_THRESHOLDS};
@@ -40,9 +41,15 @@ pub fn load_terrain_block<UpdateView>(
     return;
   }
 
+  let block_data = serialize::lazy::force(&block.block);
+
+  if !block_data.ids.is_empty() {
+    update_view(ClientToView::AddBlock(block.position.0, block_data.clone(), block.lod.0));
+  }
+
   match client.loaded_blocks.lock().unwrap().entry(block.position.0) {
     Vacant(entry) => {
-      entry.insert((block.block.clone(), block.lod.0));
+      entry.insert((block_data, block.lod.0));
     },
     Occupied(mut entry) => {
       {
@@ -54,13 +61,9 @@ pub fn load_terrain_block<UpdateView>(
         }
         update_view(ClientToView::RemoveBlockData(block.position.0, prev_lod));
       }
-      entry.insert((block.block.clone(), block.lod.0));
+      entry.insert((block_data, block.lod.0));
     },
   };
-
-  if !block.block.ids.is_empty() {
-    update_view(ClientToView::AddBlock(block.position.0, block.block, block.lod.0));
-  }
 }
 
 pub fn lod_index(distance: i32) -> LODIndex {

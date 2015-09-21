@@ -94,9 +94,9 @@ fn main() {
               client = Client::new(client_id, player_id, position);
               break 'init_loop;
             },
-            Ok(msg) => {
+            Ok(_) => {
               // Ignore other messages in the meantime.
-              info!("Ignoring: {:?}", msg);
+              warn!("Ignoring unexpected server message");
             },
             Err(e) => {
               panic!("Received error: {:?}", e);
@@ -104,9 +104,9 @@ fn main() {
           }
         }
       },
-      Ok(msg) => {
+      Ok(_) => {
         // Ignore other messages in the meantime.
-        info!("Ignoring: {:?}", msg);
+        info!("Ignoring unexpected server message");
       },
       Err(e) => {
         panic!("Received error: {:?}", e);
