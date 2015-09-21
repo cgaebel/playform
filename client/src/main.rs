@@ -94,9 +94,9 @@ fn main() {
               client = Client::new(client_id, player_id, position);
               break 'init_loop;
             },
-            Ok(msg) => {
+            Ok(_) => {
               // Ignore other messages in the meantime.
-              info!("Ignoring: {:?}", msg);
+              warn!("Ignoring unexpected server message");
             },
             Err(e) => {
               panic!("Received error: {:?}", e);
@@ -104,9 +104,9 @@ fn main() {
           }
         }
       },
-      Ok(msg) => {
+      Ok(_) => {
         // Ignore other messages in the meantime.
-        info!("Ignoring: {:?}", msg);
+        info!("Ignoring unexpected server message");
       },
       Err(e) => {
         panic!("Received error: {:?}", e);
@@ -127,10 +127,16 @@ fn main() {
             quit,
             client,
             &mut || {
-              try_recv(server_recv_thread_recv)
-                .map(|msg| serialize::decode(msg.as_ref()).unwrap())
+              stopwatch::time("recv_server", || {
+                try_recv(server_recv_thread_recv)
+                  .map(|msg| {
+                    stopwatch::time("decode", || {
+                      serialize::decode(msg.as_ref()).unwrap()
+                    })
+                  })
+              })
             },
-            &mut || { try_recv(terrain_blocks_recv) },
+            &mut || { stopwatch::time("recv_block", || { try_recv(terrain_blocks_recv) }) },
             &mut |up| { view_thread_send.send(up).unwrap() },
   	        &mut |up| { server_send_thread_send.send(Some(up)).unwrap() },
             &mut |block| { terrain_blocks_send.send(block).unwrap() },

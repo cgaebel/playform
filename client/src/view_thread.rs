@@ -6,7 +6,6 @@ use sdl2;
 use sdl2::event::Event;
 use sdl2::video;
 use std::mem;
-use std::thread;
 use stopwatch;
 use time;
 use yaglw::gl_context::GLContext;
@@ -82,28 +81,40 @@ pub fn view_thread<Recv, UpdateServer>(
 
   make_hud(&mut view);
 
+  let render_interval = {
+    let nanoseconds_per_second = 1000000000;
+    nanoseconds_per_second / FRAMES_PER_SECOND
+  };
   let mut render_timer;
   {
     let now = time::precise_time_ns();
-    let nanoseconds_per_second = 1000000000;
-    render_timer = IntervalTimer::new(nanoseconds_per_second / FRAMES_PER_SECOND, now);
+    render_timer = IntervalTimer::new(render_interval, now);
   }
 
   let mut has_focus = true;
 
+  let mut last_update = time::precise_time_ns();
+
   'game_loop:loop {
-    'event_loop:loop {
-      match event_pump.poll_event() {
-        None => {
-          break 'event_loop;
-        },
-        Some(Event::Quit{..}) => {
+    let now = time::precise_time_ns();
+    if now - last_update >= render_interval {
+      warn!("{:?}ms since last view update", (now - last_update) / 1000000);
+    }
+    last_update = now;
+
+    let start = time::precise_time_ns();
+    trace!("events {:?}", start);
+    for event in event_pump.poll_iter() {
+      let start = time::precise_time_ns();
+      trace!("event {:?}", time::precise_time_ns());
+      match event {
+        Event::Quit{..} => {
           break 'game_loop;
         }
-        Some(Event::AppTerminating{..}) => {
+        Event::AppTerminating{..} => {
           break 'game_loop;
         }
-        Some(Event::Window{win_event_id: event_id, ..}) => {
+        Event::Window{win_event_id: event_id, ..} => {
           // Manage has_focus so that we don't capture the cursor when the
           // window is in the background
           match event_id {
@@ -118,7 +129,7 @@ pub fn view_thread<Recv, UpdateServer>(
             _ => {}
           }
         }
-        Some(event) => {
+        event => {
           if has_focus {
             process_event(
               &sdl,
@@ -131,23 +142,35 @@ pub fn view_thread<Recv, UpdateServer>(
           }
         },
       }
+      let end = time::precise_time_ns();
+      trace!("done event {:?}us", (end - start) / 1000);
     }
+    let end = time::precise_time_ns();
+    trace!("done events {:?}us", (end - start) / 1000);
 
-    while let Some(update) = recv() {
-      apply_client_to_view(update, &mut view);
-    }
+    let start = time::precise_time_ns();
+    trace!("apply view updates, {:?}", start);
+    stopwatch::time("view_updates", || {
+      while let Some(update) = recv() {
+        apply_client_to_view(update, &mut view);
+      }
+    });
+    let end = time::precise_time_ns();
+    trace!("done apply view updates {:?}us", (end - start) / 1000);
 
     let renders = render_timer.update(time::precise_time_ns());
     if renders > 0 {
-      render(&mut view);
-      // swap buffers
-      window.gl_swap_window();
+      let start = time::precise_time_ns();
+      trace!("render, {:?}", start);
+      stopwatch::time("render", || {
+        render(&mut view);
+        // swap buffers
+        window.gl_swap_window();
+      });
+      let end = time::precise_time_ns();
+      trace!("done render, {:?}us", (end - start) / 1000);
     }
-
-    thread::yield_now();
   }
-
-  stopwatch::clone().print();
 
   debug!("view exiting.");
 }

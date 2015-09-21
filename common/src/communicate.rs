@@ -29,7 +29,7 @@ impl Add<u32> for ClientId {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 /// TerrainBlock plus identifying info, e.g. for transmission between server and client.
 pub struct TerrainBlockSend {
   #[allow(missing_docs)]
@@ -82,7 +82,7 @@ flatten_enum_impl!(
   (Remove, Copyable(9), Copyable(9), x),
 );
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 /// Messages the server sends to the client.
 pub enum ServerToClient {
   /// Provide the client a unique id to tag its messages.
