@@ -43,13 +43,9 @@ pub fn load_terrain_block<UpdateView>(
 
   let block_data = serialize::lazy::force(&block.block);
 
-  if !block_data.ids.is_empty() {
-    update_view(ClientToView::AddBlock(block.position.0, block_data.clone(), block.lod.0));
-  }
-
   match client.loaded_blocks.lock().unwrap().entry(block.position.0) {
     Vacant(entry) => {
-      entry.insert((block_data, block.lod.0));
+      entry.insert((block_data.clone(), block.lod.0));
     },
     Occupied(mut entry) => {
       {
@@ -61,9 +57,13 @@ pub fn load_terrain_block<UpdateView>(
         }
         update_view(ClientToView::RemoveBlockData(block.position.0, prev_lod));
       }
-      entry.insert((block_data, block.lod.0));
+      entry.insert((block_data.clone(), block.lod.0));
     },
   };
+
+  if !block_data.ids.is_empty() {
+    update_view(ClientToView::AddBlock(block.position.0, block_data.clone(), block.lod.0));
+  }
 }
 
 pub fn lod_index(distance: i32) -> LODIndex {
