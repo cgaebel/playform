@@ -129,8 +129,8 @@ pub fn apply_client_update<UpdateGaia>(
         player.rotate_lateral(v.x);
         player.rotate_vertical(v.y);
       },
-      ClientToServer::RequestBlock(Copyable(client_id), Copyable(position), Copyable(lod)) => {
-        update_gaia(ServerToGaia::Load(position, lod, LoadReason::ForClient(client_id)));
+      ClientToServer::RequestBlock(Copyable(client_id), Copyable(position), Copyable(lod), Copyable(priority)) => {
+        update_gaia(ServerToGaia::Load(position, lod, LoadReason::ForClient(client_id, priority)));
       },
       ClientToServer::Add(Copyable(player_id)) => {
         let bounds = cast(server, player_id);

@@ -76,6 +76,7 @@ pub fn update_thread<RecvServer, RecvBlock, UpdateView0, UpdateView1, UpdateServ
                         Copyable(client.id),
                         Copyable(block_position),
                         Copyable(lod),
+                        Copyable(distance as u16),
                       )
                     );
                   } else {
@@ -96,6 +97,7 @@ pub fn update_thread<RecvServer, RecvBlock, UpdateView0, UpdateView1, UpdateServ
                         Copyable(client.id),
                         Copyable(block_position),
                         Copyable(new_lod),
+                        Copyable(distance as u16),
                       )
                     );
                   } else {

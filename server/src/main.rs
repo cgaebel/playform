@@ -4,7 +4,7 @@ use std;
 use std::io::Read;
 use std::convert::AsRef;
 use std::env;
-use std::sync::mpsc::{channel, Receiver, TryRecvError};
+use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::Mutex;
 use std::thread;
 use stopwatch;
@@ -66,9 +66,7 @@ fn main() {
 
   info!("Listening on {}.", listen_url);
 
-  let (gaia_thread_send, gaia_thread_recv) = channel();
-
-  let gaia_thread_recv = Mutex::new(gaia_thread_recv);
+  let gaia_messages = Mutex::new(std::collections::binary_heap::BinaryHeap::new());
 
   let listen_socket = ReceiveSocket::new(listen_url.as_ref(), None);
   let listen_socket = Mutex::new(listen_socket);
@@ -97,7 +95,7 @@ fn main() {
   let mut threads = Vec::new();
 
   unsafe {
-    let gaia_thread_send = gaia_thread_send.clone();
+    let gaia_messages = &gaia_messages;
     let quit_upon = &quit_upon;
     let listen_socket = &listen_socket;
     threads.push(thread_scoped::scoped(move || {
@@ -109,10 +107,11 @@ fn main() {
           false
         },
         {
+          let update_gaia = &mut |up| { gaia_messages.lock().unwrap().push(up) };
           if server.update_timer.lock().unwrap().update(time::precise_time_ns()) > 0 {
             update_world(
               server,
-              &gaia_thread_send,
+              update_gaia,
             );
             true
           } else {
@@ -120,14 +119,15 @@ fn main() {
           }
         },
         {
+          let update_gaia = &mut |up| { gaia_messages.lock().unwrap().push(up) };
           listen_socket.lock().unwrap().try_read()
             .map_to_bool(|up| {
               let up = binary::decode(up.as_ref()).unwrap();
-              apply_client_update(server, &mut |block| { gaia_thread_send.send(block).unwrap() }, up)
+              apply_client_update(server, update_gaia, up)
             })
         },
         {
-          gaia_thread_recv.lock().unwrap().try_recv_opt()
+          gaia_messages.lock().unwrap().pop()
             .map_to_bool(|up| {
               update_gaia(server, up)
             })

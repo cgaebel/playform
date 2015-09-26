@@ -59,8 +59,8 @@ pub enum ClientToServer {
   StartJump(Copyable<EntityId>),
   /// [Try to] stop a jump for the player.
   StopJump(Copyable<EntityId>),
-  /// Ask the server to send a block of terrain.
-  RequestBlock(Copyable<ClientId>, Copyable<BlockPosition>, Copyable<LODIndex>),
+  /// Ask the server to send a block of terrain for some priority.
+  RequestBlock(Copyable<ClientId>, Copyable<BlockPosition>, Copyable<LODIndex>, Copyable<u16>),
   /// Brush-remove where the player's looking.
   Add(Copyable<EntityId>),
   /// Brush-add at where the player's looking.
@@ -77,7 +77,7 @@ flatten_enum_impl!(
   (RotatePlayer, Copyable(4), Copyable(4), x, y),
   (StartJump, Copyable(5), Copyable(5), x),
   (StopJump, Copyable(6), Copyable(6), x),
-  (RequestBlock, Copyable(7), Copyable(7), x, y, z),
+  (RequestBlock, Copyable(7), Copyable(7), x, y, z, a),
   (Add, Copyable(8), Copyable(8), x),
   (Remove, Copyable(9), Copyable(9), x),
 );
