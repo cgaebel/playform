@@ -10,6 +10,7 @@ use common::serialize::Copyable;
 use common::block_position::BlockPosition;
 
 use server::Server;
+use terrain;
 use terrain_loader::TerrainLoader;
 use voxel;
 
@@ -46,7 +47,7 @@ pub enum ServerToGaiaCmp {
 
 pub enum ServerToGaia {
   Load(BlockPosition, LODIndex, LoadReason),
-  Brush(voxel::brush::T<Box<voxel::mosaic::T + Send>>),
+  Brush(voxel::brush::T<Box<voxel::mosaic::T<Material=terrain::voxel::Material> + Send>>),
 }
 
 impl ServerToGaia {
