@@ -212,21 +212,21 @@ pub fn generate_block<Mosaic>(
 
       edges(
         dual_contouring::edge::Direction::X,
-        low.x, high.x - 1,
-        low.y, high.y - 1,
-        low.z, high.z - 1,
+        low.x    , high.x - 1,
+        low.y + 1, high.y - 1,
+        low.z + 1, high.z - 1,
       );
       edges(
         dual_contouring::edge::Direction::Y,
-        low.x, high.x - 1,
-        low.y, high.y - 1,
-        low.z, high.z - 1,
+        low.x + 1, high.x - 1,
+        low.y    , high.y - 1,
+        low.z + 1, high.z - 1,
       );
       edges(
         dual_contouring::edge::Direction::Z,
-        low.x, high.x - 1,
-        low.y, high.y - 1,
-        low.z, high.z - 1,
+        low.x + 1, high.x - 1,
+        low.y + 1, high.y - 1,
+        low.z    , high.z - 1,
       );
     }
 
